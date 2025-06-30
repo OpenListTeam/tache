@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/xhofe/gsync"
+	"github.com/OpenListTeam/gsync"
 )
 
 // Manager is the manager of all tasks

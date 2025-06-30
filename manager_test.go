@@ -1,7 +1,7 @@
 package tache_test
 
 import (
-	"github.com/xhofe/tache"
+	"github.com/OpenListTeam/tache"
 	"log/slog"
 	"os"
 	"sync/atomic"
