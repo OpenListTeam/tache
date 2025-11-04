@@ -16,6 +16,21 @@ type Worker[T Task] struct {
 
 // Execute executes the task
 func (w Worker[T]) Execute(task T) {
+	onError := func(err error) {
+		task.SetErr(err)
+		if errors.Is(err, context.Canceled) {
+			task.SetState(StateCanceled)
+		} else {
+			task.SetState(StateErrored)
+		}
+		if !needRetry(task) {
+			if hook, ok := Task(task).(OnFailed); ok {
+				task.SetState(StateFailing)
+				hook.OnFailed()
+			}
+			task.SetState(StateFailed)
+		}
+	}
 	// Retry immediately in the same worker until success or max retry exhausted
 	for {
 		if isRetry(task) {
@@ -29,34 +44,14 @@ func (w Worker[T]) Execute(task T) {
 			defer func() {
 				if err := recover(); err != nil {
 					log.Printf("error [%s] while run task [%s],stack trace:\n%s", err, task.GetID(), getCurrentGoroutineStack())
-					task.SetErr(NewErr(fmt.Sprintf("panic: %v", err)))
-					task.SetState(StateErrored)
-					if !needRetry(task) {
-						if hook, ok := Task(task).(OnFailed); ok {
-							task.SetState(StateFailing)
-							hook.OnFailed()
-						}
-						task.SetState(StateFailed)
-					}
+					onError(NewErr(fmt.Sprintf("panic: %v", err)))
 				}
 			}()
 			
 			task.SetState(StateRunning)
 			err := task.Run()
 			if err != nil {
-				task.SetErr(err)
-				if errors.Is(err, context.Canceled) {
-					task.SetState(StateCanceled)
-					return
-				}
-				task.SetState(StateErrored)
-				if !needRetry(task) {
-					if hook, ok := Task(task).(OnFailed); ok {
-						task.SetState(StateFailing)
-						hook.OnFailed()
-					}
-					task.SetState(StateFailed)
-				}
+				onError(err)
 				return
 			}
 			
