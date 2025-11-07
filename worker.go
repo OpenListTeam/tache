@@ -62,8 +62,7 @@ func (w Worker[T]) Execute(task T) {
 			task.SetErr(nil)
 		}()
 
-		state := task.GetState()
-		if state != StateWaitingRetry {
+		if task.GetState() != StateWaitingRetry {
 			return
 		}
 	}
